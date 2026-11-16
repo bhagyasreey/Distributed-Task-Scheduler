@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Calendar — AI Testing Harness</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #ffffff;
+      color: #111111;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 2px;
+      background: #d4d4d4;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 9999px;
+      background: #111111;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+    .card {
+      border: 1px solid #e5e5e5;
+      background: #ffffff;
+      transition: border-color 0.15s ease;
+    }
+    .card:hover {
+      border-color: #a3a3a3;
+    }
+    .btn-primary {
+      background: #111111;
+      color: #ffffff;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+    .btn-primary:hover {
+      background: #262626;
+    }
+    .btn-primary:active {
+      transform: scale(0.99);
+    }
+    .btn-outline {
+      border: 1px solid #d4d4d4;
+      background: #ffffff;
+      color: #111111;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+    .btn-outline:hover {
+      border-color: #111111;
+      background: #fafafa;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-neutral-200">
+      <div>
+        <div class="text-xs uppercase tracking-widest text-neutral-500 mono mb-1">Online RLS + Circadian Scheduling</div>
+        <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-950">Smart Calendar</h1>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="px-3 py-1.5 border border-neutral-200 bg-neutral-50 text-xs mono" id="clockDisplay">
+          Tue 14:00
+        </div>
+        <button id="btnAdvance1h" class="btn-outline px-2.5 py-1.5 text-xs font-medium">+1h</button>
+        <button id="btnAdvance3h" class="btn-outline px-2.5 py-1.5 text-xs font-medium">+3h</button>
+        <button id="btnNextMorning" class="btn-outline px-2.5 py-1.5 text-xs font-medium">Next 09:00</button>
+        <button id="btnSimulate14d" class="btn-primary px-3 py-1.5 text-xs font-medium">Simulate 14d Learning</button>
+        <button id="btnReset" class="btn-outline px-2.5 py-1.5 text-xs font-medium text-neutral-600">Reset</button>
+      </div>
+    </header>
+
+    <!-- Status Toast -->
+    <div id="statusBar" class="mt-4 px-3 py-2 border border-neutral-200 bg-neutral-50 text-xs text-neutral-700 flex items-center justify-between">
+      <span id="statusText">Engine initialized. Adjust mood/energy or complete tasks to observe online adaptation.</span>
+      <span class="mono text-neutral-400" id="updatesBadge">0 updates</span>
+    </div>
+
+    <!-- Main Grid -->
+    <main class="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Left Column: Controls & Task Queue -->
+      <section class="lg:col-span-5 space-y-6">
+        <!-- Mood & Energy Check-in -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-neutral-900">Live Check-In</h2>
+            <span class="text-xs text-neutral-500">Triggers adaptive reschedule</span>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <label for="energySlider" class="font-medium text-neutral-700">Energy</label>
+                <span class="mono text-neutral-900" id="energyVal">0.25</span>
+              </div>
+              <input id="energySlider" type="range" min="0.05" max="1.00" step="0.05" value="0.25" class="w-full" />
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <label for="moodSlider" class="font-medium text-neutral-700">Mood</label>
+                <span class="mono text-neutral-900" id="moodVal">0.30</span>
+              </div>
+              <input id="moodSlider" type="range" min="0.05" max="1.00" step="0.05" value="0.30" class="w-full" />
+            </div>
+
+            <button id="btnCheckin" class="btn-primary w-full py-2 text-xs font-medium tracking-wide">
+              Log Check-In &amp; Reschedule
+            </button>
+          </div>
+        </div>
+
+        <!-- Add Task -->
+        <div class="card p-5">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-neutral-900 mb-4">Add Task</h2>
+          <form id="addTaskForm" class="space-y-3">
+            <div>
+              <input id="taskTitle" type="text" required placeholder="Task title (e.g., Write API spec)"
+                class="w-full px-3 py-2 text-sm border border-neutral-300 focus:border-neutral-900 focus:outline-none" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] uppercase tracking-wider text-neutral-500 mb-1" for="taskCategory">Category</label>
+                <select id="taskCategory" class="w-full px-2.5 py-1.5 text-xs border border-neutral-300 bg-white focus:border-neutral-900 focus:outline-none">
+                  <option value="deep_work">deep_work</option>
+                  <option value="creative">creative</option>
+                  <option value="learning">learning</option>
+                  <option value="admin">admin</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] uppercase tracking-wider text-neutral-500 mb-1" for="taskEstimate">Est. Minutes</label>
+                <input id="taskEstimate" type="number" min="10" max="240" step="5" value="60"
+                  class="w-full px-2.5 py-1.5 text-xs border border-neutral-300 mono focus:border-neutral-900 focus:outline-none" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="block text-[11px] uppercase tracking-wider text-neutral-500 mb-1" for="taskLoad">Cog. Load</label>
+                <input id="taskLoad" type="number" min="0.1" max="1.0" step="0.1" value="0.8"
+                  class="w-full px-2.5 py-1.5 text-xs border border-neutral-300 mono focus:border-neutral-900 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-[11px] uppercase tracking-wider text-neutral-500 mb-1" for="taskPriority">Priority (1-5)</label>
+                <input id="taskPriority" type="number" min="1" max="5" step="1" value="4"
+                  class="w-full px-2.5 py-1.5 text-xs border border-neutral-300 mono focus:border-neutral-900 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-[11px] uppercase tracking-wider text-neutral-500 mb-1" for="taskDeadline">Deadline (hrs)</label>
+                <input id="taskDeadline" type="number" min="2" max="120" step="2" value="48"
+                  class="w-full px-2.5 py-1.5 text-xs border border-neutral-300 mono focus:border-neutral-900 focus:outline-none" />
+              </div>
+            </div>
+
+            <button type="submit" class="btn-outline w-full py-2 text-xs font-medium">
+              + Add Task &amp; Recompute
+            </button>
+          </form>
+        </div>
+
+        <!-- Active Task Queue -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-neutral-900">Active Queue</h2>
+            <span class="mono text-xs text-neutral-500" id="queueCount">0 tasks</span>
+          </div>
+          <div id="taskQueue" class="divide-y divide-neutral-200"></div>
+        </div>
+      </section>
+
+      <!-- Right Column: Schedule, Curve & Model Metrics -->
+      <section class="lg:col-span-7 space-y-6">
+        <!-- Learned Model Metrics -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="metricsGrid"></div>
+
+        <!-- Adaptive Schedule -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-neutral-900">Adaptive Schedule</h2>
+            <span class="text-xs text-neutral-500 mono">3-day horizon</span>
+          </div>
+          <div id="scheduleList" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Circadian Curve -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-neutral-900">Learned Circadian Pattern</h2>
+            <div class="flex items-center gap-3 text-xs text-neutral-600">
+              <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 bg-neutral-900 inline-block"></span>Energy</span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 border-t border-dashed border-neutral-500 inline-block"></span>Mood</span>
+            </div>
+          </div>
+          <div class="relative h-56">
+            <canvas id="curveChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Recent Adaptation Log -->
+        <div class="card p-5">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-neutral-900 mb-3">Learning Log</h2>
+          <div id="learningLog" class="space-y-1.5 text-xs mono text-neutral-600 max-h-40 overflow-y-auto"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------------------
+    // Core AI Algorithm (Ported 1:1 from smart_calendar.py)
+    // -------------------------------------------------------------------------
+    class OnlineDurationEstimator {
+      constructor(forgettingFactor = 0.95, l2Reg = 1.0, emaAlpha = 0.25) {
+        this.lam = forgettingFactor;
+        this.emaAlpha = emaAlpha;
+        this.weights = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+        const invReg = 1.0 / l2Reg;
+        this.P = Array.from({ length: 6 }, (_, i) =>
+          Array.from({ length: 6 }, (_, j) => (i === j ? invReg : 0.0))
+        );
+        this.categoryMultiplier = {};
+        this.categoryCounts = {};
+        this.totalUpdates = 0;
+      }
+
+      _extractFeatures(task, predictedEnergy) {
+        const fatigue = Math.max(0.0, Math.min(1.0, 1.0 - predictedEnergy));
+        return [
+          1.0,
+          Math.max(5.0, task.estimatedMinutes),
+          Number(task.complexity),
+          Number(task.cognitiveLoad),
+          fatigue * 30.0,
+          Math.min(task.rescheduleCount, 5),
+        ];
+      }
+
+      _dot(a, b) {
+        let s = 0;
+        for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+        return s;
+      }
+
+      _matVec(M, v) {
+        return M.map((row) => this._dot(row, v));
+      }
+
+      predict(task, predictedEnergy = 0.7) {
+        const x = this._extractFeatures(task, predictedEnergy);
+        const rlsPred = this._dot(this.weights, x);
+        const catMult = this.categoryMultiplier[task.category] ?? 1.0;
+        const catCount = this.categoryCounts[task.category] ?? 0;
+        const catPred = task.estimatedMinutes * catMult;
+
+        let rlsWeight = catCount > 0 ? Math.min(0.75, this.totalUpdates / 20.0) : 0.5;
+        if (this.totalUpdates < 3) rlsWeight = 0.2;
+
+        const blended = rlsWeight * rlsPred + (1.0 - rlsWeight) * catPred;
+        const totalPred = Math.max(5.0, Math.min(blended, Math.max(task.estimatedMinutes * 3.0, 240.0)));
+        const remaining = Math.max(5.0, totalPred - task.elapsedMinutes);
+
+        const px = this._matVec(this.P, x);
+        const variance = Math.max(1.0, this._dot(x, px));
+        const uncertainty = Math.min(remaining * 0.6, Math.sqrt(variance) * 2.5);
+        return [Math.round(remaining * 10) / 10, Math.round(uncertainty * 10) / 10];
+      }
+
+      update(task, actualTotalMinutes, slotEnergy = 0.7) {
+        const actual = Math.max(1.0, actualTotalMinutes);
+        const x = this._extractFeatures(task, slotEnergy);
+        const px = this._matVec(this.P, x);
+        const denom = this.lam + this._dot(x, px);
+        const k = px.map((v) => v / denom);
+        const err = actual - this._dot(this.weights, x);
+
+        this.weights = this.weights.map((w, i) => w + k[i] * err);
+
+        const n = 6;
+        const newP = Array.from({ length: n }, () => Array(n).fill(0));
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < n; j++) {
+            newP[i][j] = (this.P[i][j] - k[i] * px[j]) / this.lam;
+          }
+        }
+        this.P = newP;
+
+        const ratio = Math.max(0.3, Math.min(3.0, actual / Math.max(5.0, task.estimatedMinutes)));
+        const prevMult = this.categoryMultiplier[task.category] ?? 1.0;
+        const count = this.categoryCounts[task.category] ?? 0;
+        const alpha = count > 2 ? this.emaAlpha : 0.5;
+        this.categoryMultiplier[task.category] = (1.0 - alpha) * prevMult + alpha * ratio;
+        this.categoryCounts[task.category] = count + 1;
+        this.totalUpdates += 1;
+      }
+    }
+
+    class CircadianEnergyMoodModel {
+      constructor(learningRate = 0.25, kernelSigma = 1.5) {
+        this.lr = learningRate;
+        this.sigma = kernelSigma;
+        const defaultEnergy = [
+          0.25, 0.20, 0.18, 0.18, 0.20, 0.30,
+          0.45, 0.60, 0.72, 0.78, 0.80, 0.75,
+          0.65, 0.55, 0.52, 0.58, 0.65, 0.68,
+          0.65, 0.60, 0.52, 0.45, 0.38, 0.30,
+        ];
+        const defaultMood = Array(24).fill(0.55);
+        this.energyGrid = [[...defaultEnergy], [...defaultEnergy]];
+        this.moodGrid = [[...defaultMood], [...defaultMood]];
+        this.lastCheckinTime = null;
+        this.lastEnergy = null;
+        this.lastMood = null;
+      }
+
+      _regime(ts) {
+        const day = ts.getDay(); // 0=Sun, 6=Sat
+        return day === 0 || day === 6 ? 1 : 0;
+      }
+
+      recordCheckin(ts, energy, mood) {
+        const e = Math.max(0.0, Math.min(1.0, energy));
+        const m = Math.max(0.0, Math.min(1.0, mood));
+        const regime = this._regime(ts);
+        const hourF = ts.getHours() + ts.getMinutes() / 60.0;
+
+        for (let h = 0; h < 24; h++) {
+          const dist = Math.min(Math.abs(h - hourF), 24.0 - Math.abs(h - hourF));
+          const w = Math.exp(-0.5 * (dist / this.sigma) ** 2);
+          if (w < 0.05) continue;
+          const effLr = this.lr * w;
+          this.energyGrid[regime][h] = (1.0 - effLr) * this.energyGrid[regime][h] + effLr * e;
+          this.moodGrid[regime][h] = (1.0 - effLr) * this.moodGrid[regime][h] + effLr * m;
+        }
+        this.lastCheckinTime = new Date(ts.getTime());
+        this.lastEnergy = e;
+        this.lastMood = m;
+      }
+
+      predict(ts, useLiveMomentum = true) {
+        const regime = this._regime(ts);
+        const hLow = ts.getHours();
+        const hHigh = (hLow + 1) % 24;
+        const frac = ts.getMinutes() / 60.0;
+
+        let baseE = (1.0 - frac) * this.energyGrid[regime][hLow] + frac * this.energyGrid[regime][hHigh];
+        let baseM = (1.0 - frac) * this.moodGrid[regime][hLow] + frac * this.moodGrid[regime][hHigh];
+
+        if (useLiveMomentum && this.lastCheckinTime && this.lastEnergy !== null && this.lastMood !== null) {
+          const deltaHours = (ts.getTime() - this.lastCheckinTime.getTime()) / 3600000.0;
+          if (deltaHours >= 0.0 && deltaHours <= 6.0) {
+            const decay = Math.exp(-deltaHours / 2.5);
+            baseE = decay * this.lastEnergy + (1.0 - decay) * baseE;
+            baseM = decay * this.lastMood + (1.0 - decay) * baseM;
+          }
+        }
+        return [Math.round(baseE * 1000) / 1000, Math.round(baseM * 1000) / 1000];
+      }
+    }
+
+    class SmartCalendarEngine {
+      constructor(workStartHour = 9, workEndHour = 20, bufferMinutes = 5) {
+        this.workStartHour = workStartHour;
+        this.workEndHour = workEndHour;
+        this.bufferMinutes = bufferMinutes;
+        this.durationModel = new OnlineDurationEstimator();
+        this.energyMoodModel = new CircadianEnergyMoodModel();
+        this.tasks = new Map();
+      }
+
+      addTask(task) {
+        this.tasks.set(task.id, task);
+      }
+
+      computeFreeSlots(startTime, horizonDays) {
+        const freeSlots = [];
+        for (let dayOffset = 0; dayOffset <= horizonDays; dayOffset++) {
+          const d = new Date(startTime.getTime() + dayOffset * 86400000);
+          const winStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), this.workStartHour, 0, 0, 0);
+          const winEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), this.workEndHour, 0, 0, 0);
+          const actualStart = dayOffset === 0 && startTime > winStart ? new Date(startTime.getTime()) : winStart;
+          if (actualStart < winEnd) {
+            const dur = (winEnd - actualStart) / 60000.0;
+            if (dur >= 15) freeSlots.push({ start: actualStart, end: winEnd });
+          }
+        }
+        return freeSlots;
+      }
+
+      _scoreTaskSlot(task, slotStart, predMinutes, energy, mood, prevCategory, referenceNow) {
+        const stateIndex = 0.65 * energy + 0.35 * mood;
+        let alignment;
+        if (task.cognitiveLoad >= 0.65) {
+          alignment = 2.0 * stateIndex - 1.2 * Math.abs(task.cognitiveLoad - stateIndex);
+        } else if (task.cognitiveLoad <= 0.35) {
+          alignment = 1.0 - 0.6 * stateIndex;
+        } else {
+          alignment = 1.0 - Math.abs(task.cognitiveLoad - stateIndex);
+        }
+
+        const priorityScore = 0.35 * task.priority + 0.20 * Math.min(task.rescheduleCount, 4);
+        let deadlineScore = 0.0;
+        const taskEnd = new Date(slotStart.getTime() + predMinutes * 60000.0);
+        if (task.deadline) {
+          const hoursMargin = (task.deadline.getTime() - taskEnd.getTime()) / 3600000.0;
+          if (hoursMargin < 0) deadlineScore = -5.0;
+          else if (hoursMargin >= 2.0) deadlineScore = 0.5;
+        }
+
+        const hoursAway = Math.max(0.0, (slotStart.getTime() - referenceNow.getTime()) / 3600000.0);
+        const earlinessPenalty = 0.025 * hoursAway;
+        const contextBonus = prevCategory === task.category ? 0.25 : 0.0;
+
+        const total = 2.2 * alignment + priorityScore + deadlineScore + contextBonus - earlinessPenalty;
+        return Math.round(total * 1000) / 1000;
+      }
+
+      schedule(now, horizonDays = 3) {
+        const candidates = Array.from(this.tasks.values()).filter(
+          (t) => t.status === "pending" || t.status === "unfinished"
+        );
+        candidates.sort((a, b) => {
+          if (Boolean(a.deadline) !== Boolean(b.deadline)) return a.deadline ? -1 : 1;
+          if (a.deadline && b.deadline && a.deadline.getTime() !== b.deadline.getTime()) {
+            return a.deadline.getTime() - b.deadline.getTime();
+          }
+          return (b.priority + 0.5 * b.rescheduleCount) - (a.priority + 0.5 * a.rescheduleCount);
+        });
+
+        let freeSlots = this.computeFreeSlots(now, horizonDays);
+        const scheduled = [];
+        const prevCatByDay = {};
+
+        for (const task of candidates) {
+          let bestIdx = null;
+          let bestScore = -1e9;
+          let bestMeta = null;
+
+          const windows = [];
+          freeSlots.forEach((slot, idx) => {
+            windows.push([idx, slot.start, slot]);
+            const slotDur = (slot.end - slot.start) / 60000.0;
+            if (slotDur >= 120) {
+              let step = new Date(slot.start.getTime() + 3600000);
+              while ((slot.end - step) / 60000.0 >= 30) {
+                windows.push([idx, step, slot]);
+                step = new Date(step.getTime() + 3600000);
+              }
+            }
+          });
+
+          for (const [idx, candStart, slot] of windows) {
+            const [energy, mood] = this.energyMoodModel.predict(candStart);
+            const [predMin, uncMin] = this.durationModel.predict(task, energy);
+            const avail = (slot.end - candStart) / 60000.0;
+            if (avail < predMin) continue;
+
+            const dayKey = candStart.toDateString();
+            const score = this._scoreTaskSlot(
+              task, candStart, predMin, energy, mood, prevCatByDay[dayKey], now
+            );
+            if (score > bestScore) {
+              bestScore = score;
+              bestIdx = idx;
+              bestMeta = { candStart, predMin, uncMin, energy, mood };
+            }
+          }
+
+          if (bestIdx !== null && bestMeta !== null) {
+            const { candStart, predMin, uncMin, energy, mood } = bestMeta;
+            const chosen = freeSlots.splice(bestIdx, 1)[0];
+            const blockEnd = new Date(candStart.getTime() + predMin * 60000.0);
+            const bufferedEnd = new Date(Math.min(chosen.end.getTime(), blockEnd.getTime() + this.bufferMinutes * 60000.0));
+
+            if ((candStart - chosen.start) / 60000.0 >= 15) {
+              freeSlots.push({ start: chosen.start, end: candStart });
+            }
+            if ((chosen.end - bufferedEnd) / 60000.0 >= 15) {
+              freeSlots.push({ start: bufferedEnd, end: chosen.end });
+            }
+            freeSlots.sort((a, b) => a.start - b.start);
+
+            prevCatByDay[candStart.toDateString()] = task.category;
+            scheduled.push({
+              taskId: task.id,
+              title: task.title,
+              category: task.category,
+              start: candStart,
+              end: blockEnd,
+              predictedMinutes: predMin,
+              uncertaintyMinutes: uncMin,
+              predictedEnergy: energy,
+              predictedMood: mood,
+              affinityScore: bestScore,
+              cognitiveLoad: task.cognitiveLoad,
+              rescheduleCount: task.rescheduleCount,
+            });
+          }
+        }
+
+        scheduled.sort((a, b) => a.start - b.start);
+        return scheduled;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // App State & UI Wiring
+    // -------------------------------------------------------------------------
+    let engine;
+    let simNow;
+    let logs = [];
+    let curveChart = null;
+    let taskCounter = 100;
+
+    function fmtTime(d) {
+      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return `${days[d.getDay()]} ${hh}:${mm}`;
+    }
+
+    function fmtClockOnly(d) {
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+
+    function addLog(msg) {
+      logs.unshift(`[${fmtTime(simNow)}] ${msg}`);
+      if (logs.length > 40) logs.pop();
+    }
+
+    function initApp() {
+      engine = new SmartCalendarEngine(9, 20, 5);
+      simNow = new Date(2026, 10, 17, 14, 0, 0); // Tue 14:00 (afternoon slump)
+      logs = [];
+
+      addLog("Initialized clean workspace. Add tasks to begin.");
+      renderAll();
+    }
+
+    function renderAll() {
+      document.getElementById("clockDisplay").textContent = fmtTime(simNow);
+      document.getElementById("updatesBadge").textContent = `${engine.durationModel.totalUpdates} updates`;
+
+      const scheduled = engine.schedule(simNow, 3);
+      renderMetrics();
+      renderQueue();
+      renderSchedule(scheduled);
+      renderChart();
+      renderLogs();
+    }
+
+    function renderMetrics() {
+      const dm = engine.durationModel;
+      const cats = ["deep_work", "creative", "admin"];
+      const items = [
+        { label: "Model Updates", value: String(dm.totalUpdates) },
+        ...cats.map((c) => ({
+          label: `${c} mult`,
+          value: dm.categoryMultiplier[c] ? `${dm.categoryMultiplier[c].toFixed(2)}x` : "1.00x",
+        })),
+      ];
+      document.getElementById("metricsGrid").innerHTML = items
+        .map(
+          (item) => `
+          <div class="card p-3.5">
+            <div class="text-[11px] uppercase tracking-wider text-neutral-500">${item.label}</div>
+            <div class="text-lg font-semibold mono text-neutral-950 mt-0.5">${item.value}</div>
+          </div>`
+        )
+        .join("");
+    }
+
+    function renderQueue() {
+      const active = Array.from(engine.tasks.values()).filter(
+        (t) => t.status === "pending" || t.status === "unfinished"
+      );
+      document.getElementById("queueCount").textContent = `${active.length} active`;
+      const container = document.getElementById("taskQueue");
+
+      if (active.length === 0) {
+        container.innerHTML = `<div class="py-6 text-center text-xs text-neutral-500">No active tasks. Add a task above to test scheduling.</div>`;
+        return;
+      }
+
+      const [curE] = engine.energyMoodModel.predict(simNow);
+      container.innerHTML = active
+        .map((t) => {
+          const [pred, unc] = engine.durationModel.predict(t, curE);
+          return `
+          <div class="py-3 first:pt-1 last:pb-1">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="text-sm font-medium text-neutral-900">${t.title}</div>
+                <div class="text-[11px] mono text-neutral-500 mt-0.5">
+                  ${t.category} · load ${t.cognitiveLoad.toFixed(1)} · est ${t.estimatedMinutes}m → AI ${pred}m (±${unc}m)
+                  ${t.rescheduleCount > 0 ? `· <span class="text-neutral-900 font-medium">resched ×${t.rescheduleCount}</span>` : ""}
+                </div>
+              </div>
+            </div>
+            <div class="mt-2 flex items-center gap-2">
+              <input id="act_${t.id}" type="number" min="5" max="300" value="${Math.round(pred)}"
+                class="w-16 px-2 py-1 text-xs mono border border-neutral-300" title="Actual minutes spent" />
+              <button data-action="complete" data-id="${t.id}" class="btn-primary px-2.5 py-1 text-[11px] font-medium">Complete</button>
+              <button data-action="unfinished" data-id="${t.id}" class="btn-outline px-2.5 py-1 text-[11px] font-medium">Unfinished</button>
+            </div>
+          </div>`;
+        })
+        .join("");
+    }
+
+    function renderSchedule(scheduled) {
+      const container = document.getElementById("scheduleList");
+      if (scheduled.length === 0) {
+        container.innerHTML = `<div class="py-8 text-center text-xs text-neutral-500">Schedule is empty. Add tasks on the left to see AI time-blocking.</div>`;
+        return;
+      }
+
+      container.innerHTML = scheduled
+        .map(
+          (b) => `
+          <div class="p-3.5 border border-neutral-200 bg-neutral-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="mono text-xs font-medium px-2 py-0.5 bg-neutral-900 text-white">${fmtTime(b.start)}–${fmtClockOnly(b.end)}</span>
+                <span class="text-sm font-medium text-neutral-950">${b.title}</span>
+              </div>
+              <div class="text-xs text-neutral-600 mt-1.5 mono">
+                ${b.category} · load ${b.cognitiveLoad.toFixed(2)} · ~${b.predictedMinutes}m (±${b.uncertaintyMinutes}m)
+              </div>
+            </div>
+            <div class="text-left sm:text-right mono text-[11px] text-neutral-500 shrink-0">
+              <div>E=${b.predictedEnergy.toFixed(2)} · M=${b.predictedMood.toFixed(2)}</div>
+              <div class="text-neutral-900 font-medium">score ${b.affinityScore.toFixed(2)}</div>
+            </div>
+          </div>`
+        )
+        .join("");
+    }
+
+    function renderChart() {
+      const hours = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
+      const regime = simNow.getDay() === 0 || simNow.getDay() === 6 ? 1 : 0;
+      const energyData = engine.energyMoodModel.energyGrid[regime];
+      const moodData = engine.energyMoodModel.moodGrid[regime];
+
+      const ctx = document.getElementById("curveChart").getContext("2d");
+      if (curveChart) {
+        curveChart.data.datasets[0].data = energyData;
+        curveChart.data.datasets[1].data = moodData;
+        curveChart.update("none");
+        return;
+      }
+
+      curveChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: hours,
+          datasets: [
+            {
+              label: "Energy",
+              data: energyData,
+              borderColor: "#111111",
+              borderWidth: 2,
+              pointRadius: 0,
+              tension: 0.35,
+            },
+            {
+              label: "Mood",
+              data: moodData,
+              borderColor: "#737373",
+              borderWidth: 1.5,
+              borderDash: [4, 4],
+              pointRadius: 0,
+              tension: 0.35,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 0,
+              max: 1,
+              grid: { color: "#f0f0f0" },
+              ticks: { font: { family: "JetBrains Mono", size: 10 }, color: "#737373" },
+            },
+            x: {
+              grid: { display: false },
+              ticks: { maxTicksLimit: 8, font: { family: "JetBrains Mono", size: 10 }, color: "#737373" },
+            },
+          },
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
+
+    function renderLogs() {
+      document.getElementById("learningLog").innerHTML = logs
+        .map((l) => `<div class="py-0.5 border-b border-neutral-100">${l}</div>`)
+        .join("");
+    }
+
+    function setStatus(msg) {
+      document.getElementById("statusText").textContent = msg;
+    }
+
+    // Event Listeners
+    const energySlider = document.getElementById("energySlider");
+    const moodSlider = document.getElementById("moodSlider");
+    energySlider.addEventListener("input", () => {
+      document.getElementById("energyVal").textContent = Number(energySlider.value).toFixed(2);
+    });
+    moodSlider.addEventListener("input", () => {
+      document.getElementById("moodVal").textContent = Number(moodSlider.value).toFixed(2);
+    });
+
+    document.getElementById("btnCheckin").addEventListener("click", () => {
+      const e = Number(energySlider.value);
+      const m = Number(moodSlider.value);
+      engine.energyMoodModel.recordCheckin(simNow, e, m);
+      addLog(`Check-in recorded (E=${e.toFixed(2)}, M=${m.toFixed(2)}) -> rescheduled.`);
+      setStatus(`Logged check-in (E=${e.toFixed(2)}, M=${m.toFixed(2)}) and re-optimized schedule.`);
+      renderAll();
+    });
+
+    document.getElementById("addTaskForm").addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const title = document.getElementById("taskTitle").value.trim();
+      if (!title) return;
+      const dlHours = Number(document.getElementById("taskDeadline").value);
+      const task = {
+        id: `t_${++taskCounter}`,
+        title,
+        category: document.getElementById("taskCategory").value,
+        complexity: 3,
+        cognitiveLoad: Number(document.getElementById("taskLoad").value),
+        estimatedMinutes: Number(document.getElementById("taskEstimate").value),
+        priority: Number(document.getElementById("taskPriority").value),
+        deadline: dlHours > 0 ? new Date(simNow.getTime() + dlHours * 3600000) : null,
+        status: "pending",
+        elapsedMinutes: 0,
+        rescheduleCount: 0,
+      };
+      engine.addTask(task);
+      document.getElementById("taskTitle").value = "";
+      addLog(`Added "${task.title}" (${task.category}, est ${task.estimatedMinutes}m).`);
+      setStatus(`Added "${task.title}" and recomputed schedule.`);
+      renderAll();
+    });
+
+    document.getElementById("taskQueue").addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-action]");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      const task = engine.tasks.get(id);
+      if (!task) return;
+
+      const inputEl = document.getElementById(`act_${id}`);
+      const mins = Math.max(5, Number(inputEl?.value || task.estimatedMinutes));
+      const e = Number(energySlider.value);
+      const m = Number(moodSlider.value);
+
+      if (action === "complete") {
+        task.status = "completed";
+        engine.energyMoodModel.recordCheckin(simNow, e, m);
+        engine.durationModel.update(task, task.elapsedMinutes + mins, e);
+        addLog(`Completed "${task.title}" in ${mins}m (est ${task.estimatedMinutes}m) -> RLS updated.`);
+        setStatus(`Completed "${task.title}". Duration model updated.`);
+      } else if (action === "unfinished") {
+        task.status = "unfinished";
+        task.elapsedMinutes += Math.min(mins, 20);
+        task.rescheduleCount += 1;
+        engine.energyMoodModel.recordCheckin(simNow, e, m);
+        addLog(`Marked "${task.title}" unfinished (+20m elapsed) -> rescheduled.`);
+        setStatus(`Rescheduled unfinished task "${task.title}" based on current mood/energy.`);
+      }
+      renderAll();
+    });
+
+    document.getElementById("btnAdvance1h").addEventListener("click", () => {
+      simNow = new Date(simNow.getTime() + 3600000);
+      addLog("Advanced clock +1h.");
+      renderAll();
+    });
+
+    document.getElementById("btnAdvance3h").addEventListener("click", () => {
+      simNow = new Date(simNow.getTime() + 3 * 3600000);
+      addLog("Advanced clock +3h.");
+      renderAll();
+    });
+
+    document.getElementById("btnNextMorning").addEventListener("click", () => {
+      const next = new Date(simNow.getTime() + 86400000);
+      simNow = new Date(next.getFullYear(), next.getMonth(), next.getDate(), 9, 0, 0);
+      addLog("Jumped to next day 09:00.");
+      renderAll();
+    });
+
+    document.getElementById("btnSimulate14d").addEventListener("click", () => {
+      const base = new Date(2026, 10, 3, 9, 0, 0);
+      for (let day = 0; day < 14; day++) {
+        [9, 11, 14, 17].forEach((hour, idx) => {
+          const ts = new Date(base.getTime() + day * 86400000 + (hour - 9) * 3600000);
+          const h = ts.getHours();
+          const e = Math.max(0.1, Math.min(1.0,
+            0.55 + 0.30 * Math.exp(-(((h - 10.0) / 2.0) ** 2))
+            - 0.28 * Math.exp(-(((h - 14.5) / 1.5) ** 2))
+            + 0.18 * Math.exp(-(((h - 18.0) / 1.8) ** 2))
+          ));
+          const m = Math.max(0.1, Math.min(1.0,
+            0.60 + 0.20 * Math.exp(-(((h - 10.5) / 2.5) ** 2))
+            - 0.15 * Math.exp(-(((h - 14.5) / 1.8) ** 2))
+          ));
+          engine.energyMoodModel.recordCheckin(ts, e, m);
+          const cat = idx < 2 ? "deep_work" : "admin";
+          const est = cat === "deep_work" ? 60 : 30;
+          const mult = cat === "deep_work" ? 1.40 : 0.85;
+          const actual = est * mult * (1.0 + 0.15 * (1.0 - e));
+          engine.durationModel.update(
+            {
+              estimatedMinutes: est,
+              complexity: cat === "deep_work" ? 4 : 2,
+              cognitiveLoad: cat === "deep_work" ? 0.85 : 0.25,
+              rescheduleCount: 0,
+              category: cat,
+            },
+            actual,
+            e
+          );
+        });
+      }
+      addLog("Simulated 14 days (56 completions): learned 1.4x deep_work & afternoon slump.");
+      setStatus("14-day simulation complete. Notice updated multipliers and circadian curve.");
+      renderAll();
+    });
+
+    document.getElementById("btnReset").addEventListener("click", initApp);
+
+    window.addEventListener("DOMContentLoaded", initApp);
+  </script>
+</body>
+</html>
